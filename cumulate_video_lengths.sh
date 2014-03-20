@@ -1,0 +1,93 @@
+#!/bin/bash
+# Author : Harsh Trivedi
+
+/bin/ls -laR > "ls.txt"
+file="ls.txt"
+
+min_total=0
+sec_total=0
+hour_total=0
+min=0
+sec=0
+hour=0
+Directory="d"
+File="-"
+isVideo=""
+length_of_string=0
+direc=""
+global_direc=""
+report=""
+
+while read -r line
+do
+	line=$(echo $line | tr -s ' ')
+	safe_line=$(printf "%q" "$line")
+	direc=$(echo $line | grep ^\.*\:$)
+	length_of_direc=$(echo "${#direc} - 1" | bc )
+
+	if [ "$direc" != "" ];
+	then
+		if [ "$direc" != '.:' ];
+		then
+			direc=$(echo $direc | cut -c 3-$length_of_direc)
+			if [ "$direc" != "" ];
+			then
+				global_direc="$direc/"
+			else
+				global_direc=""
+			fi
+		fi
+	fi
+	isFile=$(echo $safe_line | cut -c 1-1)
+	safe_line=$(echo $safe_line | cut -f 9 -d " ")
+	if [ "$isFile" = "-" ];
+	then
+		full_line=$(ls -la "$global_direc$safe_line")
+			file_name=$(ls "$safe_line")
+			length_of_string=${#file_name}
+			# echo $file_name
+			# echo $length_of_string
+
+			if [ "$file_name" != "" ];
+			then
+				isVideo=$(file $file_name | cut -c $length_of_string- | grep -i video)
+				isVideo="$isVideo$(file $file_name | cut -c $length_of_string- | grep -i movie)"
+				isVideo="$isVideo$(file $file_name | cut -c $length_of_string- | grep -i mpeg)"
+			
+				if [ "$isVideo" != "" ];
+				then
+					# echo "Direc is       $global_direc"
+					# echo "File name is:  $safe_line"
+
+					length_of_video=$(avconv -i $file_name 2>&1 | grep Duration | awk '{print $2}' | tr -d ,)
+					echo -e "$global_direc$safe_line  \t\t\t $length_of_video"
+
+					hour_str=$(echo $length_of_video | cut -f 1 -d ":")
+					min_str=$(echo $length_of_video | cut -f 2 -d ":")
+					sec_str=$(echo $length_of_video | cut -f 3 -d ":")		
+
+					hour=$( (echo $hour_str) | bc )
+					min=$( (echo $min_str) | bc )
+					sec=$( (echo $sec_str) | bc )
+
+					hour_total=$( echo "$hour_total + $hour" | bc)
+					min_total=$( echo "$min_total + $min" | bc)
+					sec_total=$( echo "$sec_total + $sec" | bc)
+				fi
+
+			fi
+	fi
+
+done < "$file"
+
+
+
+echo_result(){
+		echo "Hours : $hour_total"
+		echo "Mins  : $min_total"
+		echo "Secs  :$sec_total"
+}
+
+echo_result
+
+rm ls.txt
